@@ -1,91 +1,97 @@
 <?php
-$authDB = require_once __DIR__ . '/database/security.php';
-const ERROR_REQUIRED = 'Veuillez renseigner ce champ';
-const ERROR_PASSWORD_TOO_SHORT = 'Le mot de passe doit faire au moins 6 caractères';
-const ERROR_PASSWORD_MISMATCH = 'Le mot de passe n\'est pas valide';
-const ERROR_EMAIL_INVALID = 'L\'email n\'est pas valide';
-const ERROR_EMAIL_UNKOWN = 'L\'email n\'est pas enregistrée';
+require __DIR__ . '/database/database.php';
+$authDB = require __DIR__ . '/database/security.php';
+$currentUser = $authDB->isLoggedin();
+$articleDB = require_once __DIR__ . '/database/models/ArticleDB.php';
+$articles = $articleDB->fetchAll();
+$categories = [];
 
-$errors = [
-  'email' => '',
-  'password' => '',
-];
+$_GET = filter_input_array(INPUT_GET, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$selectedCat = $_GET['cat'] ?? '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $input = filter_input_array(INPUT_POST, [
-    'email' => FILTER_SANITIZE_EMAIL,
-  ]);
-  $email = $input['email'] ?? '';
-  $password = $_POST['password'] ?? '';
-
-  if (!$email) {
-    $errors['email'] = ERROR_REQUIRED;
-  } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    $errors['email'] = ERROR_EMAIL_INVALID;
-  }
-  if (!$password) {
-    $errors['password'] = ERROR_REQUIRED;
-  } elseif (mb_strlen($password) < 6) {
-    $errors['password'] = ERROR_PASSWORD_TOO_SHORT;
-  }
-
-  if (empty(array_filter($errors, fn ($e) => $e !== ''))) {
-    $user = $authDB->getUserFromEmail($email);
-    if (!$user) {
-      $errors['email'] = ERROR_EMAIL_UNKOWN;
-    } else {
-      if (!password_verify($password, $user['password'])) {
-        $errors['password'] = ERROR_PASSWORD_MISMATCH;
-      } else {
-        $authDB->login($user['id']);
-        header('Location: /');
-      }
-    }
-  }
+if (count($articles)) {
+    $cattmp = array_map(fn ($a) => $a['category'],  $articles);
+    $categories = array_reduce($cattmp, function ($acc, $cat) {
+        if (isset($acc[$cat])) {
+            $acc[$cat]++;
+        } else {
+            $acc[$cat] = 1;
+        }
+        return $acc;
+    }, []);
+    $articlePerCategories = array_reduce($articles, function ($acc, $article) {
+        if (isset($acc[$article['category']])) {
+            $acc[$article['category']] = [...$acc[$article['category']], $article];
+        } else {
+            $acc[$article['category']] = [$article];
+        }
+        return $acc;
+    }, []);
 }
 
+
 ?>
+
 
 
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-  <?php require_once 'includes/head.php' ?>
-  <link rel="stylesheet" href="/public/css/auth-register.css">
-  <title>Connexion</title>
+    <?php require_once 'includes/head.php' ?>
+    <link rel="stylesheet" href="/public/css/index.css">
+    <title>Blog</title>
 </head>
 
 <body>
-  <div class="container">
-    <?php require_once 'includes/header.php' ?>
-    <div class="content">
-      <div class="block p-20 form-container">
-        <h1>Connexion</h1>
-        <form action="/auth-login.php" , method="POST">
-          <div class="form-control">
-            <label for="email">Email</label>
-            <input type="email" name="email" id="email" value="<?= $email ?? '' ?>">
-            <?php if ($errors['email']) : ?>
-              <p class="text-danger"><?= $errors['email'] ?></p>
-            <?php endif; ?>
-          </div>
-          <div class="form-control">
-            <label for="password">Mot de passe</label>
-            <input type="password" name="password" id="password">
-            <?php if ($errors['password']) : ?>
-              <p class="text-danger"><?= $errors['password'] ?></p>
-            <?php endif; ?>
-          </div>
-          <div class="form-actions">
-            <a href="/" class="btn btn-secondary" type="button">Annuler</a>
-            <button class="btn btn-primary" type="submit">Connexion</button>
-          </div>
-        </form>
-      </div>
+    <div class="container">
+        <?php require_once 'includes/header.php' ?>
+        <div class="content">
+            <div class="newsfeed-container">
+                <ul class="category-container">
+                    <li class=<?= $selectedCat ? '' : 'cat-active' ?>><a href="/">Tous les articles <span class="small">(<?= count($articles) ?>)</span></a></li>
+                    <?php foreach ($categories as $catName => $catNum) : ?>
+                        <li class=<?= $selectedCat ===  $catName ? 'cat-active' : '' ?>><a href="/?cat=<?= $catName ?>"> <?= $catName ?><span class="small">(<?= $catNum ?>)</span> </a></li>
+                    <?php endforeach; ?>
+                </ul>
+                <div class="newsfeed-content">
+                    <?php if (!$selectedCat) : ?>
+                        <?php foreach ($categories as $cat => $num) : ?>
+                            <h2><?= $cat ?></h2>
+                            <div class="articles-container">
+                                <?php foreach ($articlePerCategories[$cat] as $a) : ?>
+                                    <a href="/show-article.php?id=<?= $a['id'] ?>" class="article block">
+                                        <div class="overflow">
+                                            <div class="img-container" style="background-image:url(<?= $a['image'] ?>"></div>
+                                        </div>
+                                        <h3><?= $a['title'] ?></h3>
+                                        <?php if ($a['author']) : ?>
+                                            <div class="article-author">
+                                                <p><?= $a['firstname'] . ' ' . $a['lastname']  ?></p>
+                                            </div>
+                                        <?php endif; ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else : ?>
+                        <h2><?= $selectedCat ?></h2>
+                        <div class="articles-container">
+                            <?php foreach ($articlePerCategories[$selectedCat] as $a) : ?>
+                                <a href="/show-article.php?id=<?= $a['id'] ?>" class="article block">
+                                    <div class="overflow">
+                                        <div class="img-container" style="background-image:url(<?= $a['image'] ?>"></div>
+                                    </div>
+                                    <h3><?= $a['title'] ?></h3>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <?php require_once 'includes/footer.php' ?>
     </div>
-    <?php require_once 'includes/footer.php' ?>
-  </div>
 
 </body>
 
