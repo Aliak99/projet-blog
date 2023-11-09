@@ -1,6 +1,6 @@
 <?php
 
-$dns = 'mysql:host=localhost;dbname=blog';
+$dns = 'mysql:host=localhost:3306;dbname=clement1s1_';
 $user = 'clement1s1';
 $pwd = '1Swiss1.2000';
 
