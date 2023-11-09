@@ -3,7 +3,7 @@ $currentUser = $currentUser ?? false;
 ?>
 
 <header>
-    <a href="/" class="logo">Dyma Blog</a>
+    <a href="/" class="logo">Aliak Blog</a>
     <div class="header-mobile">
         <div class="header-mobile-icon">
             <img src="/public/img/mobile-menu.png">
