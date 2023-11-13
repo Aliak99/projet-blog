@@ -1,10 +1,8 @@
 <?php
 $currentUser = $currentUser ?? false;
-
+require __DIR__ . '/../config.php';
 $headerLinkPrefix = PRODUCTION_ENV ? '/app' : '';
-
 ?>
-
 <header>
     <a href="/" class="logo">Aliak Blog</a>
     <div class="header-mobile">
